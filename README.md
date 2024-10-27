@@ -18,5 +18,3 @@ If you use this code for academic research, please cite the following paper:
       primaryClass={stat.ME},
       url={https://arxiv.org/abs/2405.05638}, 
 }
->>>>>>> 68af975 (first commit)
->>>>>>> b593bc9 (first commit)
