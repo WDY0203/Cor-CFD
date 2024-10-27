@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-# Cor-CFD
-=======
-<<<<<<< HEAD
-# Cor-CFD
-=======
 # Correlation-induced Finite Difference Estimator
 
 ## Overview
