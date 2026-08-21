@@ -83,12 +83,20 @@ jobs:
             --raw-dir probe/raw \
             --out-dir probe/analysis
 
+      - name: Deep-analyze Bybit stream families and Binance continuity
+        run: |
+          python scripts/cryptohftdata_deep_probe.py \
+            --raw-dir probe/raw \
+            --out-dir probe/analysis
+
       - name: Print concise result
         if: always()
         run: |
-          if [[ -f probe/analysis/summary.md ]]; then
-            cat probe/analysis/summary.md
-          fi
+          for report in probe/analysis/summary.md probe/analysis/deep_summary.md; do
+            if [[ -f "${report}" ]]; then
+              cat "${report}"
+            fi
+          done
           if [[ -f probe/analysis/compressed_sha256.txt ]]; then
             cat probe/analysis/compressed_sha256.txt
           fi
