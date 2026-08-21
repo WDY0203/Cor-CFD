@@ -1,0 +1,105 @@
+name: CryptoHFTData bounded probe
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out probe branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install inspection dependencies
+        run: python -m pip install --disable-pip-version-check duckdb pyarrow zstandard
+
+      - name: Download official sample objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p probe/raw probe/http probe/analysis
+
+          download_one() {
+            local remote_path="$1"
+            local output_name="$2"
+            local url="https://api.cryptohftdata.com/download?file=${remote_path}"
+            local header_file="probe/http/${output_name}.headers.txt"
+            local body_file="probe/raw/${output_name}.parquet.zst"
+
+            echo "Downloading ${remote_path}"
+            curl \
+              --fail-with-body \
+              --location \
+              --silent \
+              --show-error \
+              --retry 4 \
+              --retry-all-errors \
+              --retry-delay 3 \
+              --connect-timeout 30 \
+              --max-time 900 \
+              --dump-header "${header_file}" \
+              --output "${body_file}" \
+              "${url}"
+
+            test -s "${body_file}"
+            magic="$(head -c 4 "${body_file}" | od -An -tx1 | tr -d ' \n')"
+            if [[ "${magic}" != "28b52ffd" ]]; then
+              echo "Unexpected magic for ${body_file}: ${magic}" >&2
+              echo "First 500 bytes:" >&2
+              head -c 500 "${body_file}" >&2 || true
+              exit 1
+            fi
+
+            stat --printf='%n %s bytes\n' "${body_file}"
+            sha256sum "${body_file}"
+          }
+
+          download_one \
+            "bybit/2025-08-01/20/BTCUSDT_orderbook.parquet.zst" \
+            "bybit_2025-08-01_20_BTCUSDT_orderbook"
+
+          download_one \
+            "binance_futures/2025-08-01/20/BTCUSDT_orderbook.parquet.zst" \
+            "binance_futures_2025-08-01_20_BTCUSDT_orderbook"
+
+          sha256sum probe/raw/*.zst > probe/analysis/compressed_sha256.txt
+          ls -lh probe/raw | tee probe/analysis/file_sizes.txt
+
+      - name: Inspect Parquet schemas, messages, snapshots, and cadence
+        run: |
+          python scripts/cryptohftdata_probe.py \
+            --raw-dir probe/raw \
+            --out-dir probe/analysis
+
+      - name: Print concise result
+        if: always()
+        run: |
+          if [[ -f probe/analysis/summary.md ]]; then
+            cat probe/analysis/summary.md
+          fi
+          if [[ -f probe/analysis/compressed_sha256.txt ]]; then
+            cat probe/analysis/compressed_sha256.txt
+          fi
+
+      - name: Upload original objects and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cryptohftdata-probe-2025-08-01-20
+          path: probe/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
