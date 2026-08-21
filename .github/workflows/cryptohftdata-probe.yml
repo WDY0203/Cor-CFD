@@ -25,7 +25,7 @@ jobs:
       - name: Install inspection dependencies
         run: python -m pip install --disable-pip-version-check duckdb pyarrow zstandard
 
-      - name: Download official sample objects
+      - name: Download recent hourly objects
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +57,6 @@ jobs:
             magic="$(head -c 4 "${body_file}" | od -An -tx1 | tr -d ' \n')"
             if [[ "${magic}" != "28b52ffd" ]]; then
               echo "Unexpected magic for ${body_file}: ${magic}" >&2
-              echo "First 500 bytes:" >&2
               head -c 500 "${body_file}" >&2 || true
               exit 1
             fi
@@ -67,12 +66,12 @@ jobs:
           }
 
           download_one \
-            "bybit/2025-08-01/20/BTCUSDT_orderbook.parquet.zst" \
-            "bybit_2025-08-01_20_BTCUSDT_orderbook"
+            "bybit/2026-08-20/20/BTCUSDT_orderbook.parquet.zst" \
+            "bybit_2026-08-20_20_BTCUSDT_orderbook"
 
           download_one \
-            "binance_futures/2025-08-01/20/BTCUSDT_orderbook.parquet.zst" \
-            "binance_futures_2025-08-01_20_BTCUSDT_orderbook"
+            "binance_futures/2026-08-20/20/BTCUSDT_orderbook.parquet.zst" \
+            "binance_futures_2026-08-20_20_BTCUSDT_orderbook"
 
           sha256sum probe/raw/*.zst > probe/analysis/compressed_sha256.txt
           ls -lh probe/raw | tee probe/analysis/file_sizes.txt
@@ -105,7 +104,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cryptohftdata-probe-2025-08-01-20
+          name: cryptohftdata-probe-2026-08-20-20
           path: probe/
           if-no-files-found: error
           compression-level: 0
